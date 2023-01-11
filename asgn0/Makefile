@@ -12,4 +12,5 @@ hello.o: hello.c
 clean:
 	rm -f hello hello.o
 	
-
+format:
+	clang-format -i *.[ch]
