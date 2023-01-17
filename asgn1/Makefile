@@ -14,6 +14,3 @@ clean:
 	
 format:
 	clang-format -i *.[ch]
-
-tmpclean:
-	rm -f *.txt
