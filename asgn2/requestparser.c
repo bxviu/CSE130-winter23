@@ -10,7 +10,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 #include "httpserver.h"
 
 /**
@@ -186,9 +185,9 @@ Request parse(char *r, ssize_t size) {
     printf("got:\n%s\n----\n", r);
     int rln = cmd_parse(&c, r, size);
     Header_Field hf;
-    int hfn = parse_header_field(&hf, r+rln, size-rln);
+    int hfn = parse_header_field(&hf, r + rln, size - rln);
     Message_Body mb;
-    parse_message_body(&mb, r+hfn+rln, size-hfn-rln);
+    parse_message_body(&mb, r + hfn + rln, size - hfn - rln);
     //cmd_dump(&c);
 
     Request req = { .req_l = &c, .head_f = &hf, .msg_b = &mb };

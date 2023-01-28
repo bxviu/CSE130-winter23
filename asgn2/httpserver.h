@@ -52,6 +52,4 @@ typedef struct {
     Message_Body *msg_b;
 } Response;
 
-
-
 Request parse(char *r, ssize_t size);

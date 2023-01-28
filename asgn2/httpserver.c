@@ -40,7 +40,7 @@ void get_cmd_args(Listener_Socket *sock, char **arg) {
     //itoa(atoi(arg[1]), s);
     //write(1, "a\n", sizeof("a"));
     //write(1, s, sizeof(10));
-    //int a = 
+    //int a =
     listener_init(sock, atoi(arg[1]));
     //char s2[2];
     //itoa(a, s2);
@@ -50,13 +50,13 @@ void get_cmd_args(Listener_Socket *sock, char **arg) {
     //} else if (a == 0) {
     //    write(1, "0\n", sizeof("0"));
     //}
-    
+
     //write(1, "bri'ish\n", sizeof("bri'ish"));
     //write(1, &a, sizeof("a"));
     //printf("1%d\n", a);
 }
 
-void accept_connection(Listener_Socket* sock) {
+void accept_connection(Listener_Socket *sock) {
     //write(1, "bri'ish\n", sizeof("bri'ish"));
     int a = listener_accept(sock);
     if (a > 0) {
@@ -78,7 +78,7 @@ void process_connection(int sock) {
     //read(sock, buffer, 10);
     ssize_t size = read_until(sock, buffer, sizeof(buffer), s);
     //printf("read:%zd\n", size);
-    buffer[size+1] = '\0';
+    buffer[size + 1] = '\0';
     Request req = parse(buffer, size);
     fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", req.req_l->method, req.req_l->uri,
         req.req_l->version);
@@ -96,7 +96,10 @@ void process_connection(int sock) {
                                             res.sts_l->phrase),
                                      "\r\n"),
                               res.head_f->key),
-        ": "), res.head_f->value), "\r\n\r\n"), res.msg_b->body);
+                       ": "),
+                res.head_f->value),
+            "\r\n\r\n"),
+        res.msg_b->body);
     write_all(sock, str_res, strlen(str_res));
     //pass_bytes(sock, sock, 10);
     //write(1, buffer, sizeof(buffer));
@@ -127,9 +130,9 @@ int main(int argc, char **argv) {
     if (argc != 2) {
         printf("Unfortunate for you, ded");
         return 0;
-    }    
+    }
     Listener_Socket sock = { .fd = socket(AF_LOCAL, SOCK_STREAM, 0) };
-    
+
     get_cmd_args(&sock, argv);
     //while (true) {
     accept_connection(&sock);
@@ -142,4 +145,3 @@ int main(int argc, char **argv) {
     //}
     return 0;
 }
-
