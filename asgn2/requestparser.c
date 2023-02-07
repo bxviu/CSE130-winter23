@@ -23,17 +23,10 @@
 
 //#define PARSE_REGEX "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{0,20})\n"
 //#define PARSE_REGEX "^(([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) HTTP/[0-9]{1}.[0-9]{1}){0,2048}\r\n(([a-zA-Z0-9]{0,128}):([a-zA-Z0-9]*)\r\n)?\r\n)[a-zA-Z0-9]{0,128}"
-#define PARSE_REQUEST_LINE "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) (HTTP/[0-9]{1}.[0-9]{1})\r\n"
+#define PARSE_REQUEST_LINE "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) (HTTP/[0-9]*.[0-9]*)\r\n"
 #define PARSE_HEADER_FIELD "^([a-zA-Z0-9.-]{0,128}): ([a-zA-Z0-9.:/*]*)\r\n"
 #define PARSE_HEADER_FIELD_END "[a-zA-Z0-9.:/*-]*\r\n\r\n"
 //#define PARSE_MESSAGE_BODY "^[a-zA-Z0-9]{0,128}"
-
-void cmd_dump(Request_Line *c) {
-    if (c->method && c->uri && c->version)
-        fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", c->method, c->uri, c->version);
-    else
-        fprintf(stderr, "Command not parsed!\n");
-}
 
 static int cmd_parse(Request_Line *c, char *b, ssize_t size) {
 
@@ -79,17 +72,20 @@ static int cmd_parse(Request_Line *c, char *b, ssize_t size) {
             c->method[matches[1].rm_eo] = '\0';
             c->uri[matches[2].rm_eo - matches[2].rm_so] = '\0';
             c->version[matches[3].rm_eo - matches[3].rm_so] = '\0';
+            regfree(&re);
             return strlen(c->method) + strlen(c->uri) + strlen(c->version) + 5;
         } else {
             c->method = NULL;
             c->uri = NULL;
             c->version = NULL;
+            regfree(&re);
             return 0;
         }
         //for (int i = 2; i < 10; i++) {
         //    printf("%s\n", c->buf + matches[i].rm_so);
         //}
     }
+    regfree(&re);
     return 0;
 }
 
@@ -119,12 +115,12 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
                 //printf("GOT | %s: %s\n", hf->key, hf->value);
                 //return 
                 bytes_read += strlen(hf->key) + strlen(hf->value) + 4;
-            } /*else {
+            } /* else {
                 hf->key = NULL;
                 hf->value = NULL;
                 return 0;
             }*/
-        } while (strcmp(hf->key, "Content-Length") && rc == 0);
+        } while (rc == 0 && strcmp(hf->key, "Content-Length"));
         do {
             rc = regcomp(&re, PARSE_HEADER_FIELD_END, REG_EXTENDED);
             assert(!rc);
@@ -136,10 +132,12 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
                 bytes_read += matches[0].rm_eo - matches[0].rm_so;
             }
         } while (rc == 0);
-        return bytes_read;
+        regfree(&re);
+        return bytes_read + 2;
     }
     hf->key = NULL;
     hf->value = NULL;
+    regfree(&re);
     return 0;
 }
 
@@ -150,9 +148,9 @@ static void parse_message_body(Message_Body *mb, char *b, ssize_t size) {
     for (int i = 0; i < size; i++) {
         mb->buf[i] = b[i];
     }
-    //printf("%s\n", mb->buf);
     mb->bufsize = size;
     mb->body = mb->buf;
+    //printf("buf: |%s|%lu|%zd\n", mb->buf, sizeof(mb->body), size);
     //if (mb->bufsize > 0) {
     //    mb->buf[mb->bufsize] = 0;
     //    rc = regcomp(&re, PARSE_HEADER_FIELD, REG_EXTENDED);
@@ -173,28 +171,16 @@ static void parse_message_body(Message_Body *mb, char *b, ssize_t size) {
     //return 0;
 }
 
-void print_usage(char *exec) {
-
-    printf("usage: %s\n\n", exec);
-    printf("Parses a get/set command header that were passed to stdin\n");
-    printf("The format for valid a command is:\n");
-    printf("\t[method] [location]\\n\n");
-    printf("where:\n");
-    printf("\t[method] has between 1 and 8 characters in the range [a-zA-Z]\n");
-    printf("\t[location] starts with '/' and includes up to 64 characters ");
-    printf("in the set [a-zA-Z0-9._]\n");
-}
-
 Request* parse(char *r, ssize_t size) {
     Request_Line *c = malloc(sizeof(Request_Line));
+    Header_Field *hf = malloc(sizeof(Header_Field));
+    Message_Body *mb = malloc(sizeof(Message_Body));
     //printf("got:\n%s\n----\n", r);
     int rln = cmd_parse(c, r, size);
-    Header_Field *hf = malloc(sizeof(Header_Field));
-    int hfn = parse_header_field(hf, r + rln, size - rln);
-    Message_Body *mb = malloc(sizeof(Message_Body));
-    parse_message_body(mb, r + hfn + rln, size - hfn - rln);
-    //cmd_dump(&c);
-
+    if (c->method != NULL) {
+        int hfn = parse_header_field(hf, r + rln, size - rln);
+        parse_message_body(mb, r + hfn + rln, size - hfn - rln);
+    }
     Request *req = malloc(sizeof(Request));
     req->req_l = c;
     req->head_f = hf;

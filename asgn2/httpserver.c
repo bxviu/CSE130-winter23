@@ -74,13 +74,13 @@ void accept_connection(Listener_Socket *sock) {
 
 void process_connection(int sock) {
     char buffer[2048];
-    char *s = "\r\n\r\n";
+    //char *s = "\r\n\r\n";
     //read(sock, buffer, 10);
     ssize_t size = 0;
     int read = 0;
     //do {
-        read = read_until(sock, buffer, sizeof(buffer), s);
-        size += read;
+    read = read_until(sock, buffer, sizeof(buffer), "\r\n\r\n");
+    size += read;
     //} while (read > 0);
     //printf("read:%zd\n", size);
     buffer[size + 1] = '\0';
@@ -97,6 +97,17 @@ void process_connection(int sock) {
     } else {
         handle_response(statcode, sock, -1);
     }
+    close(*infile);
+    //free(req->head_f->key);
+    //free(req->head_f->value);
+    //free(req->msg_b->body);
+    //free(req->req_l->method);
+    //free(req->req_l->uri);
+    //free(req->req_l->version);
+    free(req->req_l);
+    free(req->msg_b);
+    free(req->head_f);
+    free(req);
     /* fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", req.req_l->method, req.req_l->uri,
     req.req_l->version);
     fprintf(stderr, "Key: %s\nValue: %s\n", req.head_f->key, req.head_f->value);
@@ -123,39 +134,51 @@ void process_connection(int sock) {
 
 void close_connection(int sock) {
     shutdown(sock, SHUT_WR);
+    //close(sock);
+    //printf("|%d|\n", r);
 }
-
-//struct Request { }; // holds parsed data
-//
-//int open_file(..); // returns a valid file fd
-//
-//void handle_put_request(Request *request)
-//
-//Request parse_data(char *buffer); // parses buffer to request
-
-// void main();
-// accept new connection
-// read all bytes
-// request = parse_data
-// open_file
-// call your handlers
 
 int main(int argc, char **argv) {
     if (argc != 2) {
         printf("Unfortunate for you, ded");
         return 0;
     }
-    Listener_Socket sock = { .fd = socket(AF_LOCAL, SOCK_STREAM, 0) };
+    //int listening = -1;
+    Listener_Socket sockServer = { .fd = socket(AF_INET, SOCK_STREAM, 0) };
+    Listener_Socket sockClient = { .fd = socket(AF_INET, SOCK_STREAM, 0) };
+    //get_cmd_args(&sock, argv);
+    listener_init(&sockServer, atoi(argv[1]));
+    while (true) {
+    //for (int i = 0; i < 5; i++) {
+        //listening 
+        //if (listener_init(sock, atoi(argv[1])) == -1) {
+        //    printf("error");
+        //    break;
+        //}
+        //printf("1socket:%d\n", sock->fd);
+        sockClient.fd = listener_accept(&sockServer);
+        //printf("2socket:%d\n", socks->fd);
+        //if (listening == 0) {
+            //accept_connection(&sock);
+            //printf("socket:%d\n", sock.fd);
+            //write(1, "br1u'uh\n", sizeof("br1u'uh"));
+        if (sockClient.fd > 2) {
+            process_connection(sockClient.fd);
+            //write(1, "\n|2|\n", sizeof("v-2-"));
+            //close_connection(sock->fd);
+            
+        }
+        close_connection(sockClient.fd);
+        //close(sock->fd);
+        //sockie.fd = socket(AF_INET, SOCK_STREAM, 0);
+        //sock = &sockie;
+            //listening = -1;
+            //write(1, "|3|\n", sizeof("-3-"));
+        //sock.fd = socket(AF_LOCAL, SOCK_STREAM, 0);
+            //printf("socket:%d\n", socks->fd);
+            //get_cmd_args(&sock, argv);
+        //}
 
-    get_cmd_args(&sock, argv);
-    //while (true) {
-        accept_connection(&sock);
-        //printf("socket:%d\n", sock.fd);
-        //write(1, "br1u'uh\n", sizeof("br1u'uh"));
-        process_connection(sock.fd);
-        //write(1, "\n|2|\n", sizeof("v-2-"));
-        close_connection(sock.fd);
-        //write(1, "|3|\n", sizeof("-3-"));
-    //}
+    }
     return 0;
 }

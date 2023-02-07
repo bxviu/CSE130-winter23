@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <math.h>
 
 #include "asgn2_helper_funcs.h"
 #include "httpserver.h"
@@ -21,22 +20,7 @@ int send_response(Response *res, int sock, int infile) {
     char str_res[100]; 
     snprintf(str_res, sizeof(str_res), "%s %s %s\r\n%s: ", res->sts_l->version,
         res->sts_l->code, res->sts_l->phrase, res->head_f->key);
-    //strcat(str_res, res->sts_l->version);
-    /*strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(str_res, " "),
-                                                                res->sts_l->code),
-                                                         " "),
-                                                  res->sts_l->phrase),
-                                           "\r\n"),
-                                    res->head_f->key),
-                             ": "),
-                      res->head_f->value),
-               "\r\n\r\n"),
-        res->msg_b->body);*/
-    //strcat(strcat(strcat(strcat(strcat(strcat(strcat(str_res, " "), res->sts_l->code), " "),
-    //                         res->sts_l->phrase),
-    //                  "\r\n"),
-    //           res->head_f->key),
-    //    ": ");
+    int read_bytes = 0;
     if (!strcmp(res->head_f->value, "?")) {
         //write_all(sock, str_res, strlen(str_res)); 
         long g = get_file_size(infile);
@@ -45,13 +29,14 @@ int send_response(Response *res, int sock, int infile) {
         //str[5] = '\0';
         //strcat(str, "\r\n\r\n");
         write_all(sock, str_res, strlen(str_res)); 
-        int r = pass_bytes(infile, sock, g); 
+        int read_bytes = pass_bytes(infile, sock, g); 
         //printf("%d %d\n", r, infile);
-        return r;
+        return read_bytes;
     } else {
         sprintf(str_res + strlen(str_res), "%s\r\n\r\n%s", res->head_f->value, res->msg_b->body);
-        //strcat(strcat(strcat(str_res, res->head_f->value), "\r\n\r\n"), res->msg_b->body);
-        return write_all(sock, str_res, strlen(str_res));
+        read_bytes = write_all(sock, str_res, strlen(str_res));
+        return read_bytes;
+        
     }
 }
 
@@ -111,7 +96,7 @@ Response *create_response(enum StatusCode statcode, int infile) {
             mb->body = "Not Implemented\n";
             break;
         case VERSION_NOT_SUPPORTED: 
-            sl->code = "501";
+            sl->code = "505";
             sl->phrase = "Version Not Supported";
             hf->value = "22";
             mb->body = "Version Not Supported\n";
@@ -128,4 +113,14 @@ void handle_response(enum StatusCode statcode, int sock, int infile) {
     Response *res = create_response(statcode, infile);
     send_response(res, sock, infile);
     //free everything
+    //free(res->head_f->key);
+    //free(res->head_f->value);
+    //free(res->msg_b->body);
+    //free(res->sts_l->phrase);
+    //free(res->sts_l->code);
+    //free(res->sts_l->version);
+    free(res->sts_l);
+    free(res->msg_b);
+    free(res->head_f);
+    free(res);
 }

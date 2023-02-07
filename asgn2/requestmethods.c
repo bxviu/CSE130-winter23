@@ -42,17 +42,20 @@ enum StatusCode method_put(Request *req, int sock, int *infile) {
     }
     *infile = open(req->req_l->uri, O_TRUNC | O_WRONLY | O_CREAT, 0666);
     if (*infile == -1) {
-        write(STDERR_FILENO, "Operation Failed\n", sizeof("Operation Failed"));
         statcode = BAD_REQUEST;
         //return cleanupReturn(1, filename, command, infile);
     }
-    pass_bytes(sock, *infile, atoi(req->head_f->value));
-    //int bytes_written = write_all(*infile, req->msg_b->body, atoi(req->head_f->value));
-    //if (bytes_written == -1) {
-    //    write(STDERR_FILENO, "Operation Failed\n", sizeof("Operation Failed"));
-    //    statcode = BAD_REQUEST;
-    //    // return cleanupReturn(1, filename, command, infile);
-    //}
+    int bytes_written = 0;
+    //printf("sizes: %lu, %d", strlen(req->msg_b->body), atoi(req->head_f->value));
+    if (req->msg_b->bufsize == 0) {//(req->msg_b->body && (int) strlen(req->msg_b->body)) != atoi(req->head_f->value)) {
+        bytes_written = pass_bytes(sock, *infile, atoi(req->head_f->value));
+    } else {
+        bytes_written = write_all(*infile, req->msg_b->body, atoi(req->head_f->value));
+    }
+    if (bytes_written == -1) {
+        statcode = BAD_REQUEST;
+        // return cleanupReturn(1, filename, command, infile);
+    }
     return statcode;
 } 
 
@@ -77,6 +80,7 @@ enum StatusCode method_get(Request *req, int *infile) {
     //if (bytes_written == -1) {
     //    write(STDERR_FILENO, "Operation Failed\n", sizeof("Operation Failed"));
     //}
+    //free(filename);
     return statcode;
     //do {
     //    bytes_read = read(infile, buffer, sizeof(buffer));
@@ -105,19 +109,26 @@ enum Command get_command(char *method) {
 }
 
 enum StatusCode handle_request(Request *req, int sock, int* infile) {
-    printf("Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
-        req->req_l->version);
-    printf("Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
-    printf("Body: %s\n", req->msg_b->body);
+    //printf("Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
+    //    req->req_l->version);
+    //printf("Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
+    //printf("Body: %s|\n", req->msg_b->body);
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
-    enum Command method = get_command(req->req_l->method);
     enum StatusCode methodresult = BAD_REQUEST;
-    switch (method) {
-        case PUT: methodresult = method_put(req, sock, infile); break;
-        case GET: methodresult = method_get(req, infile); break;
-        case NONE: methodresult = -1; break;
+    if (!strcmp(req->req_l->version, "HTTP/1.1")) {
+        if (req->req_l->method != NULL) {
+            enum Command method = get_command(req->req_l->method);
+            switch (method) {
+            case PUT: methodresult = method_put(req, sock, infile); break;
+            case GET: methodresult = method_get(req, infile); break;
+            case NONE: methodresult = NOT_IMPLEMENTED; break;
+            }
+        }
+    }
+    else if (strlen(req->req_l->version) == 8) {
+        methodresult = VERSION_NOT_SUPPORTED;
     }
     return methodresult;
 }

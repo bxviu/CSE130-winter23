@@ -70,4 +70,3 @@ Request* parse(char *r, ssize_t size);
 enum StatusCode handle_request(Request *req, int sock, int* infile);
 
 void handle_response(enum StatusCode statcode, int sock, int infile);
-
