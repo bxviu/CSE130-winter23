@@ -59,11 +59,11 @@ void get_cmd_args(Listener_Socket *sock, char **arg) {
 void accept_connection(Listener_Socket *sock) {
     //write(1, "bri'ish\n", sizeof("bri'ish"));
     int a = listener_accept(sock);
-    if (a > 0) {
+    /*if (a > 0) {
         write(1, "accepted\n", sizeof("accepted"));
     } else {
         write(1, "failed\n", sizeof("failed"));
-    }
+    }*/
     sock->fd = a;
     //char s[2];
     //itoa(a, s);
@@ -73,34 +73,48 @@ void accept_connection(Listener_Socket *sock) {
 }
 
 void process_connection(int sock) {
-    char buffer[100];
-    char *s = "\r\n";
+    char buffer[2048];
+    char *s = "\r\n\r\n";
     //read(sock, buffer, 10);
-    ssize_t size = read_until(sock, buffer, sizeof(buffer), s);
+    ssize_t size = 0;
+    int read = 0;
+    //do {
+        read = read_until(sock, buffer, sizeof(buffer), s);
+        size += read;
+    //} while (read > 0);
     //printf("read:%zd\n", size);
     buffer[size + 1] = '\0';
-    Request req = parse(buffer, size);
-    fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", req.req_l->method, req.req_l->uri,
-        req.req_l->version);
+    Request* req = parse(buffer, size);
+    int *infile = NULL;
+    int start = -1;
+    infile = &start;
+    //printf("%d", *infile);
+    enum StatusCode statcode = handle_request(req, sock, infile);
+    //printf("%d", *infile);
+    //pass_bytes(sock, *infile, atoi(req->head_f->value));
+    if (!strcmp(req->req_l->method,"GET")) {
+        handle_response(statcode, sock, *infile);
+    } else {
+        handle_response(statcode, sock, -1);
+    }
+    /* fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", req.req_l->method, req.req_l->uri,
+    req.req_l->version);
     fprintf(stderr, "Key: %s\nValue: %s\n", req.head_f->key, req.head_f->value);
-    fprintf(stderr, "Body: %s\n", req.msg_b->body);
-    Status_Line sl = { .version = "HTTP/1.1", .code = "200", .phrase = "OK" };
-    Header_Field hf = { .key = "Content-Length", .value = "3" };
-    Message_Body mb = { .body = "OK\n" };
-    Response res = { .sts_l = &sl, .head_f = &hf, .msg_b = &mb };
-    char *str_res = strdup(res.sts_l->version);
-    strcat(
-        strcat(
-            strcat(strcat(strcat(strcat(strcat(strcat(strcat(strcat(str_res, " "), res.sts_l->code),
-                                                   " "),
-                                            res.sts_l->phrase),
-                                     "\r\n"),
-                              res.head_f->key),
-                       ": "),
-                res.head_f->value),
-            "\r\n\r\n"),
-        res.msg_b->body);
-    write_all(sock, str_res, strlen(str_res));
+    fprintf(stderr, "Body: %s\n", req.msg_b->body);*/
+    //char *str_res = create_response(statcode);
+    //
+    //enum StatusCode sc = OK;
+    //switch (statcode) {
+    //    case OK: printf("Okay\n"); break;
+    //    case CREATED: printf("CREATed\n"); break;
+    //    case BAD_REQUEST: printf("BR\n"); break;
+    //    case FORBIDDEN: printf("FORB\n"); break;
+    //    case NOT_FOUND: printf("NF\n"); break;
+    //    case INTERNAL_SERVER_ERROR: printf("ISE\n"); break;
+    //    case NOT_IMPLEMENTED: printf("NOTI\n"); break;
+    //    case VERSION_NOT_SUPPORTED: printf("VNS\n"); break;
+    //}
+    //write_all(sock, str_res, strlen(str_res));
     //pass_bytes(sock, sock, 10);
     //write(1, buffer, sizeof(buffer));
     //write(1, "hi\n", sizeof("hi"));
@@ -135,13 +149,13 @@ int main(int argc, char **argv) {
 
     get_cmd_args(&sock, argv);
     //while (true) {
-    accept_connection(&sock);
-    //printf("socket:%d\n", sock.fd);
-    //write(1, "br1u'uh\n", sizeof("br1u'uh"));
-    process_connection(sock.fd);
-    //write(1, "\n|2|\n", sizeof("v-2-"));
-    close_connection(sock.fd);
-    //write(1, "|3|\n", sizeof("-3-"));
+        accept_connection(&sock);
+        //printf("socket:%d\n", sock.fd);
+        //write(1, "br1u'uh\n", sizeof("br1u'uh"));
+        process_connection(sock.fd);
+        //write(1, "\n|2|\n", sizeof("v-2-"));
+        close_connection(sock.fd);
+        //write(1, "|3|\n", sizeof("-3-"));
     //}
     return 0;
 }

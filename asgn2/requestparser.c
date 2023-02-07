@@ -24,7 +24,8 @@
 //#define PARSE_REGEX "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{0,20})\n"
 //#define PARSE_REGEX "^(([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) HTTP/[0-9]{1}.[0-9]{1}){0,2048}\r\n(([a-zA-Z0-9]{0,128}):([a-zA-Z0-9]*)\r\n)?\r\n)[a-zA-Z0-9]{0,128}"
 #define PARSE_REQUEST_LINE "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) (HTTP/[0-9]{1}.[0-9]{1})\r\n"
-#define PARSE_HEADER_FIELD "^([a-zA-Z0-9-]{0,128}): ([a-zA-Z0-9]*)\r\n\r\n"
+#define PARSE_HEADER_FIELD "^([a-zA-Z0-9.-]{0,128}): ([a-zA-Z0-9.:/*]*)\r\n"
+#define PARSE_HEADER_FIELD_END "[a-zA-Z0-9.:/*-]*\r\n\r\n"
 //#define PARSE_MESSAGE_BODY "^[a-zA-Z0-9]{0,128}"
 
 void cmd_dump(Request_Line *c) {
@@ -33,21 +34,6 @@ void cmd_dump(Request_Line *c) {
     else
         fprintf(stderr, "Command not parsed!\n");
 }
-
-//static ssize_t read_bytes(int fd, char buf[], size_t nbytes) {
-//    size_t total = 0;
-//    ssize_t bytes = 0;
-//
-//    do {
-//        bytes = read(fd, buf + total, nbytes - total);
-//        if (bytes < 0) {
-//            return bytes;
-//        }
-//        total += bytes;
-//    } while (bytes > 0 && total < nbytes);
-//
-//    return total;
-//}
 
 static int cmd_parse(Request_Line *c, char *b, ssize_t size) {
 
@@ -116,24 +102,44 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
     }
     hf->bufsize = size;
     //printf("1: %s\n%d\n", hf->buf, hf->bufsize);
+    
     if (hf->bufsize > 0) {
+        int bytes_read = 0;
         hf->buf[hf->bufsize] = 0;
-        rc = regcomp(&re, PARSE_HEADER_FIELD, REG_EXTENDED);
-        assert(!rc);
-        rc = regexec(&re, (char *) hf->buf, 3, matches, 0);
-        if (rc == 0) {
-            hf->key = hf->buf;
-            hf->value = hf->buf + matches[2].rm_so;
-            hf->key[matches[1].rm_eo] = '\0';
-            hf->value[matches[2].rm_eo - matches[2].rm_so] = '\0';
-            //printf("2: %s\n", hf->key);
-            return strlen(hf->key) + strlen(hf->value) + 6;
-        } else {
-            hf->key = NULL;
-            hf->value = NULL;
-            return 0;
-        }
+        do { 
+            rc = regcomp(&re, PARSE_HEADER_FIELD, REG_EXTENDED);
+            assert(!rc);
+            rc = regexec(&re, (char *) hf->buf + bytes_read, 3, matches, 0);
+            //printf("PARSE | %s\n", hf->buf + bytes_read);
+            if (rc == 0) {
+                hf->key = hf->buf + bytes_read;
+                hf->value = hf->buf + matches[2].rm_so + bytes_read;
+                hf->key[matches[1].rm_eo] = '\0';
+                hf->value[matches[2].rm_eo - matches[2].rm_so] = '\0';
+                //printf("GOT | %s: %s\n", hf->key, hf->value);
+                //return 
+                bytes_read += strlen(hf->key) + strlen(hf->value) + 4;
+            } /*else {
+                hf->key = NULL;
+                hf->value = NULL;
+                return 0;
+            }*/
+        } while (strcmp(hf->key, "Content-Length") && rc == 0);
+        do {
+            rc = regcomp(&re, PARSE_HEADER_FIELD_END, REG_EXTENDED);
+            assert(!rc);
+            rc = regexec(&re, (char *) hf->buf + bytes_read, 3, matches, 0);
+            //printf("PARSE | %s\n", hf->buf + bytes_read);
+            if (rc == 0) {
+                //printf("GOT | %s: %s\n", hf->key, hf->value);
+                //return
+                bytes_read += matches[0].rm_eo - matches[0].rm_so;
+            }
+        } while (rc == 0);
+        return bytes_read;
     }
+    hf->key = NULL;
+    hf->value = NULL;
     return 0;
 }
 
@@ -179,17 +185,20 @@ void print_usage(char *exec) {
     printf("in the set [a-zA-Z0-9._]\n");
 }
 
-Request parse(char *r, ssize_t size) {
-    Request_Line c;
-    (void) c;
-    printf("got:\n%s\n----\n", r);
-    int rln = cmd_parse(&c, r, size);
-    Header_Field hf;
-    int hfn = parse_header_field(&hf, r + rln, size - rln);
-    Message_Body mb;
-    parse_message_body(&mb, r + hfn + rln, size - hfn - rln);
+Request* parse(char *r, ssize_t size) {
+    Request_Line *c = malloc(sizeof(Request_Line));
+    //printf("got:\n%s\n----\n", r);
+    int rln = cmd_parse(c, r, size);
+    Header_Field *hf = malloc(sizeof(Header_Field));
+    int hfn = parse_header_field(hf, r + rln, size - rln);
+    Message_Body *mb = malloc(sizeof(Message_Body));
+    parse_message_body(mb, r + hfn + rln, size - hfn - rln);
     //cmd_dump(&c);
 
-    Request req = { .req_l = &c, .head_f = &hf, .msg_b = &mb };
+    Request *req = malloc(sizeof(Request));
+    req->req_l = c;
+    req->head_f = hf;
+    req->msg_b = mb;
+    //{ .req_l = c, .head_f = hf, .msg_b = mb };
     return req;
 }

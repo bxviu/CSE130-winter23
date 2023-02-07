@@ -3,6 +3,19 @@
 
 #define BUFFER_SIZE PATH_MAX
 
+enum StatusCode {
+    OK = 200,
+    CREATED = 201,
+    BAD_REQUEST = 400,
+    FORBIDDEN = 403,
+    NOT_FOUND = 404,
+    INTERNAL_SERVER_ERROR = 500,
+    NOT_IMPLEMENTED = 501,
+    VERSION_NOT_SUPPORTED = 505
+};
+
+enum Command { NONE, GET, PUT };
+
 typedef struct {
     char buf[BUFFER_SIZE + 1];
     uint16_t bufsize;
@@ -52,4 +65,9 @@ typedef struct {
     Message_Body *msg_b;
 } Response;
 
-Request parse(char *r, ssize_t size);
+Request* parse(char *r, ssize_t size);
+
+enum StatusCode handle_request(Request *req, int sock, int* infile);
+
+void handle_response(enum StatusCode statcode, int sock, int infile);
+
