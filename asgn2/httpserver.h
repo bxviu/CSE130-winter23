@@ -4,6 +4,7 @@
 #define BUFFER_SIZE PATH_MAX
 
 enum StatusCode {
+    INIT = -10,
     OK = 200,
     CREATED = 201,
     BAD_REQUEST = 400,
@@ -55,6 +56,7 @@ typedef struct {
 } Status_Line;
 
 typedef struct {
+    enum StatusCode statcode;
     Request_Line *req_l;
     Header_Field *head_f;
     Message_Body *msg_b;

@@ -73,7 +73,8 @@ static int cmd_parse(Request_Line *c, char *b, ssize_t size) {
             c->uri[matches[2].rm_eo - matches[2].rm_so] = '\0';
             c->version[matches[3].rm_eo - matches[3].rm_so] = '\0';
             regfree(&re);
-            return strlen(c->method) + strlen(c->uri) + strlen(c->version) + 5;
+            //return strlen(c->method) + strlen(c->uri) + strlen(c->version) + 5;
+            return matches[3].rm_eo - matches[1].rm_so + 2;
         } else {
             c->method = NULL;
             c->uri = NULL;
@@ -89,7 +90,8 @@ static int cmd_parse(Request_Line *c, char *b, ssize_t size) {
     return 0;
 }
 
-static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
+static int parse_header_field(
+    Header_Field *hf, char *b, ssize_t size) { //, enum StatusCode *statcode) {
     regex_t re;
     regmatch_t matches[3];
     int rc;
@@ -97,8 +99,8 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
         hf->buf[i] = b[i];
     }
     hf->bufsize = size;
-    //printf("1: %s\n%d\n", hf->buf, hf->bufsize);
-
+    //fprintf(stderr,"1: %s\n%d\n", hf->buf, hf->bufsize);
+    //fprintf(stderr, "|%s|%zd|\n", b,size);
     if (hf->bufsize > 0) {
         int bytes_read = 0;
         hf->buf[hf->bufsize] = 0;
@@ -118,6 +120,9 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
                 //    matches[2].rm_eo - matches[1].rm_so + 2);
                 //bytes_read += strlen(hf->key) + strlen(hf->value) + 4;
                 bytes_read += matches[2].rm_eo - matches[1].rm_so + 2;
+                //if (*(hf->buf + bytes_read) != '\r' && *(hf->buf + bytes_read + 1) != '\n') {
+                //    *statcode = BAD_REQUEST;
+                //}
             } /* else {
                 hf->key = NULL;
                 hf->value = NULL;
@@ -125,7 +130,6 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
             }*/
             regfree(&re);
         } while (rc == 0 && strcmp(hf->key, "Content-Length"));
-
         do {
             rc = regcomp(&re, PARSE_HEADER_FIELD_END, REG_EXTENDED);
             assert(!rc);
@@ -181,14 +185,27 @@ Request *parse(char *r, ssize_t size) {
     Request_Line *c = malloc(sizeof(Request_Line));
     Header_Field *hf = malloc(sizeof(Header_Field));
     Message_Body *mb = malloc(sizeof(Message_Body));
-    //printf("got:\n%s\n----\n", r);
+    Request *req = malloc(sizeof(Request));
+    req->statcode = INIT;
+    //fprintf(stderr,"got:\n%s\n----\n", r);
     //write(STDERR_FILENO, r, size);
     int rln = cmd_parse(c, r, size);
-    if (c->method != NULL) {
-        int hfn = parse_header_field(hf, r + rln, size - rln);
-        parse_message_body(mb, r + hfn + rln, size - hfn - rln);
+    //if (c->method != NULL) {
+    if ((c->method == NULL || c->uri == NULL || c->version == NULL)) { //|| (*(r + rln) != '\r'
+        //&& *(r + rln + 1) != '\n' && !strcmp(c->method, "GET"))) {
+        //fprintf(stderr, "got:dad");
+        req->statcode = BAD_REQUEST;
+    } else {
+        int hfn = parse_header_field(hf, r + rln, size - rln); //, &req->statcode);
+        //fprintf(stderr, "got:\n%s\n----\n", r + hfn + rln);
+        if (*(r + hfn + rln - 2) != '\r' && *(r + hfn + rln - 1) != '\n'
+            && !strcmp(c->method, "GET")) {
+            //fprintf(stderr, "got:dad");
+            req->statcode = BAD_REQUEST;
+        } else {
+            parse_message_body(mb, r + hfn + rln, size - hfn - rln);
+        }
     }
-    Request *req = malloc(sizeof(Request));
     req->req_l = c;
     req->head_f = hf;
     req->msg_b = mb;

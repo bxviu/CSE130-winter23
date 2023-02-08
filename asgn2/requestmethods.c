@@ -120,25 +120,31 @@ enum Command get_command(char *method) {
 }
 
 enum StatusCode handle_request(Request *req, int sock, int *infile) {
-    /*printf("Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
-        req->req_l->version);
-    printf("Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
-    printf("Body: %s|\n", req->msg_b->body);*/
+    //fprintf(stderr, "Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
+    //    req->req_l->version);
+    //fprintf(stderr, "Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
+    //fprintf(stderr, "Body: %s|\n", req->msg_b->body);
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
-    enum StatusCode methodresult = BAD_REQUEST;
-    if (!strcmp(req->req_l->version, "HTTP/1.1")) {
-        if (req->req_l->method != NULL) {
-            enum Command method = get_command(req->req_l->method);
-            switch (method) {
-            case PUT: methodresult = method_put(req, sock, infile); break;
-            case GET: methodresult = method_get(req, infile); break;
-            case NONE: methodresult = NOT_IMPLEMENTED; break;
+    enum StatusCode methodresult = req->statcode;
+    if (methodresult != BAD_REQUEST) {
+        if (!strcmp(req->req_l->version, "HTTP/1.1")) {
+            if (req->req_l->method != NULL) {
+                enum Command method = get_command(req->req_l->method);
+                switch (method) {
+                case PUT: methodresult = method_put(req, sock, infile); break;
+                case GET: methodresult = method_get(req, infile); break;
+                case NONE: methodresult = NOT_IMPLEMENTED; break;
+                }
             }
+        } else if (strlen(req->req_l->version) == 8) {
+            methodresult = VERSION_NOT_SUPPORTED;
+        } else {
+            methodresult = BAD_REQUEST;
         }
-    } else if (strlen(req->req_l->version) == 8) {
-        methodresult = VERSION_NOT_SUPPORTED;
+    } else {
+        methodresult = BAD_REQUEST;
     }
     return methodresult;
 }

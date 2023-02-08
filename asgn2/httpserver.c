@@ -92,7 +92,7 @@ void process_connection(int sock) {
     //fprintf(stderr, "fd: %d\n", *infile);
     //pass_bytes(sock, *infile, atoi(req->head_f->value));
     //printf("sus|%d|%s|\n", *infile, req->req_l->method);
-    if (!strcmp(req->req_l->method, "GET")) {
+    if (statcode != BAD_REQUEST && !strcmp(req->req_l->method, "GET")) {
         handle_response(statcode, sock, *infile);
     } else {
         handle_response(statcode, sock, -1);

@@ -58,6 +58,7 @@ Response *create_response(enum StatusCode statcode, int infile) {
     sl->version = "HTTP/1.1";
     hf->key = "Content-Length";
     switch (statcode) {
+    case INIT: fprintf(stderr, "UHoH\n"); break;
     case OK:
         sl->code = "200";
         sl->phrase = "OK";
