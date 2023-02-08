@@ -1,5 +1,5 @@
 CC = clang
-CFLAGS = -Wall -pedantic -Werror -Wextra
+CFLAGS = -Wall -pedantic -Werror -Wextra 
 
 all: httpserver
 

@@ -77,33 +77,40 @@ void process_connection(int sock) {
     //char *s = "\r\n\r\n";
     //read(sock, buffer, 10);
     ssize_t size = 0;
-    int read = 0;
     //do {
-    read = read_until(sock, buffer, sizeof(buffer), "\r\n\r\n");
-    size += read;
+    size = read_until(sock, buffer, sizeof(buffer), "\r\n\r\n");
     //} while (read > 0);
     //printf("read:%zd\n", size);
     buffer[size + 1] = '\0';
-    Request* req = parse(buffer, size);
+    Request *req = parse(buffer, size);
     int *infile = NULL;
     int start = -1;
     infile = &start;
     //printf("%d", *infile);
     enum StatusCode statcode = handle_request(req, sock, infile);
     //printf("%d", *infile);
+    //fprintf(stderr, "fd: %d\n", *infile);
     //pass_bytes(sock, *infile, atoi(req->head_f->value));
-    if (!strcmp(req->req_l->method,"GET")) {
+    //printf("sus|%d|%s|\n", *infile, req->req_l->method);
+    if (!strcmp(req->req_l->method, "GET")) {
         handle_response(statcode, sock, *infile);
     } else {
         handle_response(statcode, sock, -1);
     }
-    close(*infile);
+    closefrom(*infile - 1);
+    //closefrom(6);
+    //close(start);
+    //free(infile);
+    //fprintf(stderr,"%d\n", r);
     //free(req->head_f->key);
     //free(req->head_f->value);
     //free(req->msg_b->body);
     //free(req->req_l->method);
     //free(req->req_l->uri);
     //free(req->req_l->version);
+    //free(req->head_f->buf);
+    //free(req->req_l->buf);
+    //free(req->msg_b->buf);
     free(req->req_l);
     free(req->msg_b);
     free(req->head_f);
@@ -144,13 +151,13 @@ int main(int argc, char **argv) {
         return 0;
     }
     //int listening = -1;
-    Listener_Socket sockServer = { .fd = socket(AF_INET, SOCK_STREAM, 0) };
-    Listener_Socket sockClient = { .fd = socket(AF_INET, SOCK_STREAM, 0) };
+    Listener_Socket sockServer = { .fd = socket(AF_LOCAL, SOCK_STREAM, 0) };
+    Listener_Socket sockClient = { .fd = socket(AF_LOCAL, SOCK_STREAM, 0) };
     //get_cmd_args(&sock, argv);
     listener_init(&sockServer, atoi(argv[1]));
     while (true) {
-    //for (int i = 0; i < 5; i++) {
-        //listening 
+        //for (int i = 0; i < 5; i++) {
+        //listening
         //if (listener_init(sock, atoi(argv[1])) == -1) {
         //    printf("error");
         //    break;
@@ -159,26 +166,24 @@ int main(int argc, char **argv) {
         sockClient.fd = listener_accept(&sockServer);
         //printf("2socket:%d\n", socks->fd);
         //if (listening == 0) {
-            //accept_connection(&sock);
-            //printf("socket:%d\n", sock.fd);
-            //write(1, "br1u'uh\n", sizeof("br1u'uh"));
+        //accept_connection(&sock);
+        //printf("socket:%d\n", sock.fd);
+        //write(1, "br1u'uh\n", sizeof("br1u'uh"));
         if (sockClient.fd > 2) {
             process_connection(sockClient.fd);
             //write(1, "\n|2|\n", sizeof("v-2-"));
             //close_connection(sock->fd);
-            
         }
         close_connection(sockClient.fd);
         //close(sock->fd);
         //sockie.fd = socket(AF_INET, SOCK_STREAM, 0);
         //sock = &sockie;
-            //listening = -1;
-            //write(1, "|3|\n", sizeof("-3-"));
+        //listening = -1;
+        //write(1, "|3|\n", sizeof("-3-"));
         //sock.fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-            //printf("socket:%d\n", socks->fd);
-            //get_cmd_args(&sock, argv);
+        //printf("socket:%d\n", socks->fd);
+        //get_cmd_args(&sock, argv);
         //}
-
     }
     return 0;
 }

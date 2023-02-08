@@ -25,6 +25,7 @@
 //    return 0;
 //}
 //
+extern int errno;
 
 int is_regular_file(const char *path) {
     struct stat path_stat;
@@ -47,7 +48,8 @@ enum StatusCode method_put(Request *req, int sock, int *infile) {
     }
     int bytes_written = 0;
     //printf("sizes: %lu, %d", strlen(req->msg_b->body), atoi(req->head_f->value));
-    if (req->msg_b->bufsize == 0) {//(req->msg_b->body && (int) strlen(req->msg_b->body)) != atoi(req->head_f->value)) {
+    if (req->msg_b->bufsize
+        == 0) { //(req->msg_b->body && (int) strlen(req->msg_b->body)) != atoi(req->head_f->value)) {
         bytes_written = pass_bytes(sock, *infile, atoi(req->head_f->value));
     } else {
         bytes_written = write_all(*infile, req->msg_b->body, atoi(req->head_f->value));
@@ -57,22 +59,31 @@ enum StatusCode method_put(Request *req, int sock, int *infile) {
         // return cleanupReturn(1, filename, command, infile);
     }
     return statcode;
-} 
+}
 
 enum StatusCode method_get(Request *req, int *infile) {
     //if URI exists
     char *filename = req->req_l->uri;
     enum StatusCode statcode = INTERNAL_SERVER_ERROR;
-    if (access(filename, F_OK) == 0) { //https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+    if (access(filename, F_OK)
+        == 0) { //https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
         statcode = OK;
     } else {
         statcode = NOT_FOUND;
     }
-    *infile = open(filename, O_RDONLY, 0666);
-    if (*infile == -1 || (*infile > 0 && !is_regular_file(filename))) {
-        //write(STDERR_FILENO, "Invalid Command\n", sizeof("Invalid Command"));
-        //return cleanupReturn(1, filename, command, infile);
+    if (statcode == OK) {
+        *infile = open(filename, O_RDONLY, 0666);
+        if (*infile > 0 && !is_regular_file(filename)) {
+            statcode = FORBIDDEN;
+        }
     }
+    //if (*infile == -1 ){//|| (*infile > 0 && !is_regular_file(filename))) {
+    //    statcode = INTERNAL_SERVER_ERROR;
+    //    int errnum = errno;
+    //    fprintf(stderr, "Error opening file: %s|%d\n", strerror(errnum), errnum);
+    //    //write(STDERR_FILENO, filename, sizeof(filename));
+    //    //return cleanupReturn(1, filename, command, infile);
+    //}
     //int bytes_written = 0;
     //do {
     //    bytes_written = pass_bytes(*infile, 1, 100);
@@ -108,11 +119,11 @@ enum Command get_command(char *method) {
     return NONE;
 }
 
-enum StatusCode handle_request(Request *req, int sock, int* infile) {
-    //printf("Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
-    //    req->req_l->version);
-    //printf("Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
-    //printf("Body: %s|\n", req->msg_b->body);
+enum StatusCode handle_request(Request *req, int sock, int *infile) {
+    /*printf("Method: %s\nURI: %s\nVersion: %s\n", req->req_l->method, req->req_l->uri,
+        req->req_l->version);
+    printf("Key: %s\nValue: %s\n", req->head_f->key, req->head_f->value);
+    printf("Body: %s|\n", req->msg_b->body);*/
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
     //printf("%s", req->req_l->method);
@@ -126,8 +137,7 @@ enum StatusCode handle_request(Request *req, int sock, int* infile) {
             case NONE: methodresult = NOT_IMPLEMENTED; break;
             }
         }
-    }
-    else if (strlen(req->req_l->version) == 8) {
+    } else if (strlen(req->req_l->version) == 8) {
         methodresult = VERSION_NOT_SUPPORTED;
     }
     return methodresult;

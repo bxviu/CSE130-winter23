@@ -23,8 +23,8 @@
 
 //#define PARSE_REGEX "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{0,20})\n"
 //#define PARSE_REGEX "^(([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) HTTP/[0-9]{1}.[0-9]{1}){0,2048}\r\n(([a-zA-Z0-9]{0,128}):([a-zA-Z0-9]*)\r\n)?\r\n)[a-zA-Z0-9]{0,128}"
-#define PARSE_REQUEST_LINE "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) (HTTP/[0-9]*.[0-9]*)\r\n"
-#define PARSE_HEADER_FIELD "^([a-zA-Z0-9.-]{0,128}): ([a-zA-Z0-9.:/*]*)\r\n"
+#define PARSE_REQUEST_LINE     "^([a-zA-Z]{0,8}) /([a-zA-Z0-9._]{2,64}) (HTTP/[0-9]*.[0-9]*)\r\n"
+#define PARSE_HEADER_FIELD     "^([a-zA-Z0-9.-]{0,128}): ([a-zA-Z0-9.:/*]*)\r\n"
 #define PARSE_HEADER_FIELD_END "[a-zA-Z0-9.:/*-]*\r\n\r\n"
 //#define PARSE_MESSAGE_BODY "^[a-zA-Z0-9]{0,128}"
 
@@ -98,11 +98,11 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
     }
     hf->bufsize = size;
     //printf("1: %s\n%d\n", hf->buf, hf->bufsize);
-    
+
     if (hf->bufsize > 0) {
         int bytes_read = 0;
         hf->buf[hf->bufsize] = 0;
-        do { 
+        do {
             rc = regcomp(&re, PARSE_HEADER_FIELD, REG_EXTENDED);
             assert(!rc);
             rc = regexec(&re, (char *) hf->buf + bytes_read, 3, matches, 0);
@@ -113,14 +113,19 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
                 hf->key[matches[1].rm_eo] = '\0';
                 hf->value[matches[2].rm_eo - matches[2].rm_so] = '\0';
                 //printf("GOT | %s: %s\n", hf->key, hf->value);
-                //return 
-                bytes_read += strlen(hf->key) + strlen(hf->value) + 4;
+                //return
+                //printf("nums |%lu|%d\n", strlen(hf->key) + strlen(hf->value) + 4,
+                //    matches[2].rm_eo - matches[1].rm_so + 2);
+                //bytes_read += strlen(hf->key) + strlen(hf->value) + 4;
+                bytes_read += matches[2].rm_eo - matches[1].rm_so + 2;
             } /* else {
                 hf->key = NULL;
                 hf->value = NULL;
                 return 0;
             }*/
+            regfree(&re);
         } while (rc == 0 && strcmp(hf->key, "Content-Length"));
+
         do {
             rc = regcomp(&re, PARSE_HEADER_FIELD_END, REG_EXTENDED);
             assert(!rc);
@@ -131,8 +136,9 @@ static int parse_header_field(Header_Field *hf, char *b, ssize_t size) {
                 //return
                 bytes_read += matches[0].rm_eo - matches[0].rm_so;
             }
+            regfree(&re);
         } while (rc == 0);
-        regfree(&re);
+        //regfree(&re);
         return bytes_read + 2;
     }
     hf->key = NULL;
@@ -171,11 +177,12 @@ static void parse_message_body(Message_Body *mb, char *b, ssize_t size) {
     //return 0;
 }
 
-Request* parse(char *r, ssize_t size) {
+Request *parse(char *r, ssize_t size) {
     Request_Line *c = malloc(sizeof(Request_Line));
     Header_Field *hf = malloc(sizeof(Header_Field));
     Message_Body *mb = malloc(sizeof(Message_Body));
     //printf("got:\n%s\n----\n", r);
+    //write(STDERR_FILENO, r, size);
     int rln = cmd_parse(c, r, size);
     if (c->method != NULL) {
         int hfn = parse_header_field(hf, r + rln, size - rln);

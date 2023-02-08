@@ -34,6 +34,7 @@ typedef struct {
     // Make an *extra* spot for a null terminator!
     char buf[BUFFER_SIZE + 1];
     uint16_t bufsize;
+    // to future me: make a hash map if you want to keep more than content len
     char *key;
     char *value;
 } Header_Field;
@@ -65,8 +66,8 @@ typedef struct {
     Message_Body *msg_b;
 } Response;
 
-Request* parse(char *r, ssize_t size);
+Request *parse(char *r, ssize_t size);
 
-enum StatusCode handle_request(Request *req, int sock, int* infile);
+enum StatusCode handle_request(Request *req, int sock, int *infile);
 
 void handle_response(enum StatusCode statcode, int sock, int infile);
