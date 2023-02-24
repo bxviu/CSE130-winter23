@@ -32,6 +32,9 @@ queue_t *queue_new(int size) {
 }
 
 void queue_delete(queue_t **q) {
+    if (q == NULL || *q == NULL) {
+        return;
+    }
     pthread_mutex_destroy((*q)->lock);
     pthread_cond_destroy((*q)->full);
     pthread_cond_destroy((*q)->empty);
@@ -44,7 +47,7 @@ void queue_delete(queue_t **q) {
 }
 
 bool queue_push(queue_t *q, void *elem) {
-    if (elem == NULL || q == NULL) {
+    if (q == NULL) {
         return false;
     }
     pthread_mutex_lock(q->lock);
@@ -60,10 +63,9 @@ bool queue_push(queue_t *q, void *elem) {
 }
 
 bool queue_pop(queue_t *q, void **elem) {
-    if (elem == NULL || q == NULL) {
+    if (q == NULL) {
         return false;
     }
-    //fprintf(stderr, "made it!\n");
     pthread_mutex_lock(q->lock);
     while (q->count == 0) {
         pthread_cond_wait(q->empty, q->lock);
