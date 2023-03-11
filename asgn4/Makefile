@@ -7,7 +7,7 @@ FORMATS  = $(SOURCES:%.c=.format/%.c.fmt) $(HEADERS:%.h=.format/%.h.fmt)
 
 CC       = clang
 FORMAT   = clang-format
-CFLAGS   = -Wall -Wpedantic -Werror -Wextra -DDEBUG
+CFLAGS   = -Wall -Wpedantic -Werror -Wextra -DDEBUG -gdwarf-4
 
 .PHONY: all clean format
 
