@@ -37,7 +37,7 @@ bool creating = false;
 queue_t *bounded_buf = NULL;
 
 int main(int argc, char **argv) {
-    if (argc < 2) { //default is 4 threads
+if (argc < 2) { //default is 4 threads
         warnx("wrong arguments: %s port_num", argv[0]);
         fprintf(stderr, "usage: [-t num_threads] <port>\n");
         return EXIT_FAILURE;
@@ -50,13 +50,14 @@ int main(int argc, char **argv) {
     size_t port = -1;
     char *endptr = NULL;
     while ((args = getopt(argc, argv, "t::")) != -1) {
-        debug("ind:%d\n", optind);
+        debug("ind:%d, %d\n", optind, argc);
         switch (args) {
             case 't':
-                if (optind >= argc) {
-                    fprintf(stderr, "Expected argument after options\n");
-                    fprintf(stderr, "usage: [-t num_threads] <port>\n");
-                    return EXIT_FAILURE;
+                if (argc == 3) {
+                    debug("ind:%d, %s\n", optind, argv[optind]);
+                    num_threads = 4;
+                    port = (size_t) strtoull(argv[optind], &endptr, 10);
+                    break;
                 }
                 num_threads = atoi(argv[optind]);
             break;
@@ -66,6 +67,9 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
             default:
                 num_threads = 4;
+        }
+        if (port != (size_t)-1) {
+            break;
         }
         if (optind == 2) {
             port = (size_t) strtoull(argv[optind+1], &endptr, 10);
@@ -78,27 +82,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "usage: [-t num_threads] <port>\n");
             return EXIT_FAILURE;
         }
-        debug("arg:%s, %d\n", argv[optind], optind);
+        debug("arg:%s, %d\n", argv[optind+1], optind);
     }
-    debug("ind:%d\n", optind);
-    // char *endptr = NULL;
-    // size_t port = (size_t) strtoull(argv[1], &endptr, 10);
-    // size_t port = -1;
-    // if (optind == 2) {
-    //     port = (size_t) strtoull(argv[optind], &endptr, 10);
-    // }
-    // else if (optind == 3) {
-    //     port = (size_t) strtoull(argv[optind], &endptr, 10);
-    // }
-    // else {
-    //     fprintf (stderr, "Too many arguments\n");
-    //     fprintf(stderr, "usage: -t <num_threads> <port>\n");
-    //     return EXIT_FAILURE;
-    // }
-    if (num_threads == 0) {
-        num_threads = 4;
-        port = (size_t) strtoull(argv[1], &endptr, 10);
-    }
+    debug("ind:%d, threads:%d\n", optind, num_threads);
     debug("port:%zu\n", port);
     
     if (endptr && *endptr != '\0') {
@@ -106,7 +92,6 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    //int num_threads = atoi(argv[2]);
     if (num_threads < 1 || num_threads > 200) {
         warnx("invalid thread amount: %d", num_threads);
         return EXIT_FAILURE;
@@ -116,13 +101,8 @@ int main(int argc, char **argv) {
     Listener_Socket sock;
     listener_init(&sock, port);
     
-    // queue_t *bounded_buf = NULL;
     bounded_buf = queue_new(10);
-    // pthread_mutex_t *creation_lock;
-    // pthread_cond_t *creation_waiting;
 
-    //pthread_t dispatcher; 
-    //pthread_create(&dispatcher, NULL, dispatcher, NULL);
     pthread_t *workers;
     workers = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
     for (int i = 0; i < num_threads; i++) {
@@ -146,17 +126,13 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
-// void *dispatcher() { nvm, main is dispatcher
-
-// }
-
-void *worker() {//(void *buf) {
-    //queue_t *bounded_buf = (queue_t *)buf;
+void *worker() {
     // int connfd = -1;
     uintptr_t connfd = -1;
     //fprintf(stdout, "counte: %d\n", bounded_buf->count);
     while (1) {
         queue_pop(bounded_buf, (void **)&connfd);
+        // debug("connfd: %d\n", connfd);
         debug("connfd: %lu\n", connfd);
         if (connfd > 2) {
             handle_connection(connfd);
@@ -259,17 +235,18 @@ void handle_get(conn_t *conn) {
     // 4. Send the file
     // (hint: checkout the conn_send_file function!)
 out:
-    //conn_send_response(conn, res);
-    
     if (res == &RESPONSE_OK) {
         flock(fd, LOCK_SH);
         conn_send_file(conn, fd, filesize);
-        flock(fd, LOCK_UN);
     }
-    if (fd > 0) {
-        close(fd);
+    else {
+        conn_send_response(conn, res);
     }
     audit_log(conn, res, &REQUEST_GET);
+    if (fd > 0) {
+        // flock(fd, LOCK_UN);
+        close(fd);
+    }
 }
 
 void handle_unsupported(conn_t *conn) {
@@ -287,53 +264,51 @@ void handle_put(conn_t *conn) {//, pthread_mutex_t *creation_lock, pthread_cond_
     debug("handling put request for %s", uri);
 
     // Check if file already exists before opening it.
-    // pthread_mutex_lock(&creation_lock);
-    // while (creating) {
-    //     pthread_cond_wait(&creation_waiting, &creation_lock);
-    // }
+    pthread_mutex_lock(&creation_lock);
+    while (creating) {
+        pthread_cond_wait(&creation_waiting, &creation_lock);
+    }
     bool existed = access(uri, F_OK) == 0;
     debug("%s existed? %d", uri, existed);
 
     // Open the file..
-    // if (existed != 0) {
-    //     pthread_mutex_lock(creation_lock);
-    //     while (turn != i) {
-    //         pthread_cond_wait(creation_waiting, creation_lock);
-    //     }
-    //     //create file
-    //     pthread_mutex_unlock(creation_lock);
-    //     pthread_cond_signal(creation_waiting);
-    // } 
-
-    if (existed == 0) {
+    if (!existed) {
         creating = true;
         open(uri, O_CREAT | O_WRONLY, 0600);
         res = &RESPONSE_CREATED;
     }
 
     // int fd = open(uri, O_CREAT | O_TRUNC | O_WRONLY, 0600);
-    int fd = open(uri, O_TRUNC | O_WRONLY, 0600);
+    int fd = open(uri, O_WRONLY, 0600);
     flock(fd, LOCK_EX);
     if (fd < 0) {
         debug("%s: %d", uri, errno);
         if (errno == EACCES || errno == EISDIR || errno == ENOENT) {
             res = &RESPONSE_FORBIDDEN;
-            flock(fd, LOCK_UN);
+            // flock(fd, LOCK_UN);
+            creating = false;
+            pthread_mutex_unlock(&creation_lock);
+            pthread_cond_signal(&creation_waiting);
             goto out;
         } else {
             res = &RESPONSE_INTERNAL_SERVER_ERROR;
-            flock(fd, LOCK_UN);
+            // flock(fd, LOCK_UN);
+            creating = false;
+            pthread_mutex_unlock(&creation_lock);
+            pthread_cond_signal(&creation_waiting);     
             goto out;
         }
     }
+    ftruncate(fd, 0);
     creating = false;
-    // pthread_mutex_unlock(&creation_lock);
-    // pthread_cond_signal(&creation_waiting);
+    pthread_mutex_unlock(&creation_lock);
+    pthread_cond_signal(&creation_waiting);
 
     res = conn_recv_file(conn, fd);
-    flock(fd, LOCK_UN);
+    // flock(fd, LOCK_UN);
 
     if (res == NULL) {
+    // if (res != &RESPONSE_CREATED) {
         res = &RESPONSE_OK;
     }
 
@@ -343,9 +318,13 @@ void handle_put(conn_t *conn) {//, pthread_mutex_t *creation_lock, pthread_cond_
     //     res = &RESPONSE_CREATED;
     // }
 
-    close(fd);
+    // close(fd);
 
 out:
     conn_send_response(conn, res);
     audit_log(conn, res, &REQUEST_PUT);
+    if (fd > 0) {
+        // flock(fd, LOCK_UN);
+        close(fd);
+    }
 }
