@@ -1,61 +1,55 @@
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "cacher.h"
 
 set *set_create() {
     set *s = (set *) malloc(sizeof(set));
     s->size = 0;
-    s->items = NULL;
+    s->list = NULL;
     return s;
 }
 
 void set_destroy(set *s) {
     for (int i = 0; i < s->size; i++) {
-        if (s->items[i] != NULL) {
-            free(s->items[i]);
+        if (s->list[i] != NULL) {
+            free(s->list[i]);
         }
     }
-    free(s->items);
+    free(s->list);
     free(s);
 }
 
-bool set_contains(set *s, void *data) {
+bool set_contains(set *s, char* data) {
+    // printf("data is %s\n", data);
     for (int i = 0; i < s->size; i++) {
-        if (s->items[i] != NULL && s->items[i]->data == data) {
+        // printf("%s\n", s->list[i]->data);
+        if (s->list[i] != NULL && !strcmp(data, s->list[i])) {
             return true;
         }
     }
     return false;
 }
 
-bool set_add(set *s, void *data) {
+bool set_add(set *s, char* data) {
     if (set_contains(s, data)) {
         return false;
     }
 
     s->size++;
-    s->items = (item **) realloc(s->items, s->size * sizeof(item *));
+    s->list = (char **) realloc(s->list, s->size * sizeof(char *));
 
-    item *new_item = (item *) malloc(sizeof(item));
-    new_item->refBit = false;
-    new_item->data = data;
-    s->items[s->size - 1] = new_item;
-
+    // char *new_item = (char *) malloc(sizeof(char));
+    s->list[s->size - 1] = data;
+    // printf("added %s\n", s->list[s->size - 1]->data);
     return true;
 }
 
-bool set_remove(set *s, void *data) {
+void print_set(set *s) {
+    printf("Accessed: ");
     for (int i = 0; i < s->size; i++) {
-        if (s->items[i] != NULL && s->items[i]->data == data) {
-            free(s->items[i]);
-            s->items[i] = NULL;
-            for (int j = i + 1; j < s->size; j++) {
-                s->items[j - 1] = s->items[j];
-            }
-            s->size--;
-            s->items = (item **) realloc(s->items, s->size * sizeof(item *));
-            return true;
-        }
+        printf("%s | ", s->list[i]);
     }
-    return false;
+    printf("\n");
 }

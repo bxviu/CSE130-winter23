@@ -19,7 +19,7 @@ enum Policy {
 
 typedef struct {
     bool refBit;
-    void *data;
+    char *data;
 } item;
 
 typedef struct {
@@ -29,31 +29,33 @@ typedef struct {
 
 typedef struct {
     int size;
-    item** items;
+    char** list;
 } set;
+
+item *create_item(char* data);
 
 cache *create(int size);
 void destroy(cache* c);
-bool contains(cache* c, void* data, bool setBit);
-void* remove_front(cache* c);
-void* remove_first(cache* c, void* data);
-bool append(cache* c, void* data);
+bool contains(cache* c, char* data, bool setBit);
+char* remove_front(cache* c);
+char* remove_first(cache* c, char* data);
+bool append(cache* c, char* data);
 
 set *set_create();
 void set_destroy(set *s);
-bool set_contains(set *s, void *data);
-bool set_add(set *s, void *data);
-bool set_remove(set *s, void *data);
+bool set_contains(set *s, char *data);
+bool set_add(set *s, char *data);
+bool set_remove(set *s, char *data);
 
-// void read_input();
 void print(bool hit);
+void print_cache(cache *c);
+void print_set(set *s);
 
 void runFIFOcache(cache* c, set* reqItems);
-bool insert_FIFO(cache* c, void* item, set* reqItems);
+bool insert_FIFO(cache* c, char* data, set* reqItems);
 
 void runLRUcache(cache* c, set* reqItems);
-bool insert_LRU(cache* c, void* item, set* reqItems);
+bool insert_LRU(cache* c, char* data, set* reqItems);
 
 void runCLOCKcache(cache* c, set* reqItems);
-bool insert_CLOCK(cache* c, void* item, set* reqItems, int clockhand);
-
+bool insert_CLOCK(cache* c, char* data, set* reqItems, int* clockhand);

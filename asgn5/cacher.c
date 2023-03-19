@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     while ((arg = getopt(argc, argv, "N:FLC")) != -1) {
         switch (arg) {
         case 'N':
-            cache_size = atoi(argv[optind]);
+            cache_size = atoi(optarg);
             break;
         case 'F':
             p = FIFO;
@@ -34,7 +34,6 @@ int main(int argc, char **argv) {
             p = CLOCK;
             break;
         case '?':
-            fprintf(stderr, "Unknown option character `\\x%x'.\n", optopt);
             fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
             return EXIT_FAILURE;
         default:
@@ -42,31 +41,30 @@ int main(int argc, char **argv) {
         }
     }
     if (cache_size == -1) {
-        warnx("wrong arguments: %s port_num", argv[0]);
         fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
         return EXIT_FAILURE;
     }
+    // printf("%d", cache_size);
 
     cache *c = create(cache_size);
     set *requestedItems = set_create();
     
     if (p == LRU) {
-        printf("lru");
-        //runLRUcache(c, requestedItems);
+        runLRUcache(c, requestedItems);
     }
     else if (p == CLOCK) {
-        printf("clock");
-        //runCLOCKcache(c, requestedItems);
+        runCLOCKcache(c, requestedItems);
     } 
     else {
-        printf("fifo");
         runFIFOcache(c, requestedItems);
     }
 
-    // read_input();
+    // print_cache(c);
+    // print_set(requestedItems);
+    printf("%d %d\n", c->comMiss, c->capMiss);
 
-    set_destroy(requestedItems);
     destroy(c);
+    set_destroy(requestedItems);
 
     return EXIT_SUCCESS;
 }

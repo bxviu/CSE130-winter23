@@ -18,49 +18,71 @@ void print(bool hit) {
 
 void runFIFOcache(cache* c, set* reqItems) {
     // void* item = (void*)1;
-    while(true) {
-        fgets(buffer, BUFFER_SIZE, stdin);
+    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
         buffer[strlen(buffer)-1] = '\0';
-        printf("got: |%s|\n", buffer);
+        // printf("%lu", strlen(buffer));
+        if ((int)strlen(buffer) == 0) {
+            break;
+        }
+        // fprintf(stdout,"got: |%s|\n", buffer);
         char* item = strdup(buffer);
+        // fprintf(stdout,"duped: %s\n", item);
         bool access = insert_FIFO(c, item, reqItems);
         print(access);
     }
 }
 
-bool insert_FIFO(cache* c, void* item, set* reqItems) {
-    if (contains(c, item, false)) {
+bool insert_FIFO(cache* c, char* data, set* reqItems) {
+    // print_cache(c);
+    // print_set(reqItems);
+    if (contains(c, data, false)) {
+        free(data);
         return HIT;
     }
-    if (set_contains(reqItems, item)) {
+    if (set_contains(reqItems, data)) {
         c->capMiss++;
     }
     else {
         c->comMiss++;
     }
+    // printf("%d, %d\n", c->count, c->size);
     if (c->count == c->size) {
         void* rem = remove_front(c);
         set_add(reqItems, rem);
     }
-    append(c, item);
+    append(c, data);
     return MISS;
 }
 
 void runLRUcache(cache* c, set* reqItems) {
-    void* item = (void*)1;
-    while(true) {
+    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
+        // printf("git: %s, %lu, %c\n", buffer, strlen(buffer), buffer[strlen(buffer)-2]);
+        // printf("%s, %lu|", buffer, strlen(buffer));
+        if (buffer[strlen(buffer)-1] == '\n') {
+            buffer[strlen(buffer)-1] = '\0';
+        }
+        else {
+            buffer[strlen(buffer)] = '\0';
+        }
+        if ((int)strlen(buffer) == 0) {
+            break;
+        }
+        char* item = strdup(buffer);
         bool access = insert_LRU(c, item, reqItems);
+        // printf("%s", item);
         print(access);
+        // printf("git: %s, %lu, %c\n", buffer, strlen(buffer), buffer[strlen(buffer)-2]);
     }
 }
 
-bool insert_LRU(cache* c, void* item, set* reqItems) {
-    if (contains(c, item, false)) {
-        void* rem = remove_first(c, item);
+bool insert_LRU(cache* c, char* data, set* reqItems) {
+    if (contains(c, data, false)) {
+        void* rem = remove_first(c, data);
         append(c, rem);
+        free(data);
         return HIT;
     }
-    if (set_contains(reqItems, item)) {
+    if (set_contains(reqItems, data)) {
         c->capMiss++;
     }
     else {
@@ -70,21 +92,29 @@ bool insert_LRU(cache* c, void* item, set* reqItems) {
         void* rem = remove_front(c);
         set_add(reqItems, rem);
     }
-    append(c, item);
+    append(c, data);
     return MISS;
 }
 
 void runCLOCKcache(cache* c, set* reqItems) {
-    int clockhand = 0;
-    void* item = (void*)1;
-    while(true) {
+    int* clockhand = malloc(sizeof(int));
+    *clockhand = 0;
+    while(fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
+        buffer[strlen(buffer)-1] = '\0';
+        if ((int)strlen(buffer) == 0) {
+            break;
+        }
+        char* item = strdup(buffer);
         bool access = insert_CLOCK(c, item, reqItems, clockhand);
         print(access);
     }
+    free(clockhand);
 }
 
-bool insert_CLOCK(cache* c, void* data, set* reqItems, int clockhand) {
+bool insert_CLOCK(cache* c, char* data, set* reqItems, int* clockhand) {
+    // printf("hand: %d\n", *clockhand);
     if (contains(c, data, true)) {
+        free(data);
         return HIT;
     }
     if (set_contains(reqItems, data)) {
@@ -94,23 +124,25 @@ bool insert_CLOCK(cache* c, void* data, set* reqItems, int clockhand) {
         c->comMiss++;
     }
     while (true) {
-        item* current_item = c->list[clockhand]; 
+        item* current_item = c->list[*clockhand]; 
         if (current_item != NULL) {
             if (current_item->refBit == 1) {
                 current_item->refBit = 0;
-                clockhand++;
+                *clockhand = (*clockhand + 1) % c->size;
             }
             else {
-                void* rem = remove_first(c, current_item->data);
-                set_add(reqItems, rem);
+                item* new = create_item(data);
+                c->list[*clockhand] = new;
+                set_add(reqItems, current_item->data);
+                free(current_item);
                 break;
             }
         }
         else {
+            append(c, data);
             break;
         }
     }
-    append(c, data);
-    clockhand++;
+    *clockhand = (*clockhand + 1) % c->size;
     return MISS;
 }
