@@ -4,6 +4,14 @@
 #include <stdio.h>
 #include "cacher.h"
 
+void print_set(set *s) {
+    printf("Accessed: ");
+    for (int i = 0; i < s->size; i++) {
+        printf("%s | ", s->list[i]);
+    }
+    printf("\n");
+}
+
 set *set_create() {
     set *s = (set *) malloc(sizeof(set));
     s->size = 0;
@@ -21,10 +29,8 @@ void set_destroy(set *s) {
     free(s);
 }
 
-bool set_contains(set *s, char* data) {
-    // printf("data is %s\n", data);
+bool set_contains(set *s, char *data) {
     for (int i = 0; i < s->size; i++) {
-        // printf("%s\n", s->list[i]->data);
         if (s->list[i] != NULL && !strcmp(data, s->list[i])) {
             return true;
         }
@@ -32,24 +38,14 @@ bool set_contains(set *s, char* data) {
     return false;
 }
 
-bool set_add(set *s, char* data) {
+bool set_add(set *s, char *data) {
     if (set_contains(s, data)) {
+        free(data);
         return false;
     }
-
     s->size++;
     s->list = (char **) realloc(s->list, s->size * sizeof(char *));
-
-    // char *new_item = (char *) malloc(sizeof(char));
     s->list[s->size - 1] = data;
-    // printf("added %s\n", s->list[s->size - 1]->data);
-    return true;
-}
 
-void print_set(set *s) {
-    printf("Accessed: ");
-    for (int i = 0; i < s->size; i++) {
-        printf("%s | ", s->list[i]);
-    }
-    printf("\n");
+    return true;
 }

@@ -10,52 +10,37 @@
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        warnx("wrong arguments: %s port_num", argv[0]);
         fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
         return EXIT_FAILURE;
     }
-    int cache_size = -1;
+    int cache_size = 0;
     enum Policy p = 0;
     int arg = 0;
     opterr = 0;
     //accepts the optional arguments when the program starts
     while ((arg = getopt(argc, argv, "N:FLC")) != -1) {
         switch (arg) {
-        case 'N':
-            cache_size = atoi(optarg);
-            break;
-        case 'F':
-            p = FIFO;
-            break;
-        case 'L':
-            p = LRU;
-            break;
-        case 'C':
-            p = CLOCK;
-            break;
-        case '?':
-            fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
-            return EXIT_FAILURE;
-        default:
-            p = FIFO;
+        case 'N': cache_size = atoi(optarg); break;
+        case 'F': p = FIFO; break;
+        case 'L': p = LRU; break;
+        case 'C': p = CLOCK; break;
+        case '?': fprintf(stderr, "usage: ./cacher [-N size] <policy>\n"); return EXIT_FAILURE;
+        default: p = FIFO;
         }
     }
-    if (cache_size == -1) {
+    if (cache_size == 0) {
         fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
         return EXIT_FAILURE;
     }
-    // printf("%d", cache_size);
 
-    cache *c = create(cache_size);
+    cache *c = cache_create(cache_size);
     set *requestedItems = set_create();
-    
+
     if (p == LRU) {
         runLRUcache(c, requestedItems);
-    }
-    else if (p == CLOCK) {
+    } else if (p == CLOCK) {
         runCLOCKcache(c, requestedItems);
-    } 
-    else {
+    } else {
         runFIFOcache(c, requestedItems);
     }
 
@@ -63,9 +48,8 @@ int main(int argc, char **argv) {
     // print_set(requestedItems);
     printf("%d %d\n", c->comMiss, c->capMiss);
 
-    destroy(c);
+    cache_destroy(c);
     set_destroy(requestedItems);
 
     return EXIT_SUCCESS;
 }
-
