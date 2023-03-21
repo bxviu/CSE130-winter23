@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
         default: p = FIFO;
         }
     }
-    if (cache_size == 0) {
+    if (cache_size < 1) {
         fprintf(stderr, "usage: ./cacher [-N size] <policy>\n");
         return EXIT_FAILURE;
     }
